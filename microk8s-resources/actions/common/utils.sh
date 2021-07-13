@@ -674,13 +674,21 @@ is_first_boot() {
   # The last-start-date file contains a date in seconds
   # if that date is prior to the creation date of /proc/1 we assume this is the first
   # time after the host booted
+  # Note, lxc shares the same /proc/stat as the host
   if ! [ -e "$1/last-start-date" ] ||
      ! [ -e /proc/1 ]
   then
     return 1
   else
     last_start=$("$SNAP/bin/cat" "$1/last-start-date")
-    boot_time=$(date -r  /proc/1 +%s)
+    if [ -e /proc/stat ] &&
+       grep btime /proc/stat &&
+       ! grep lxc /proc/1/environ
+    then
+      boot_time=$(grep btime /proc/stat | cut -d' ' -f2)
+    else
+      boot_time=$(date -r  /proc/1 +%s)
+    fi
     echo "Last time service started was $last_start and the host booted at $boot_time"
     if [ "$last_start" -le "$boot_time" ]
     then
@@ -696,4 +704,3 @@ mark_boot_time() {
   now=$(date +%s)
   echo "$now" > "$1"/last-start-date
 }
-
